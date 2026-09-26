@@ -1,0 +1,15 @@
+# LilyGO TTGO T5 V2.3: ESP32 with 4 MB of flash
+CONFIG_IDF_TARGET="esp32"
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+
+# The council's certificate chains to DigiCert Global Root G2, which is in
+# the common CA bundle. (HTTPS to the council currently fails anyway, see
+# main/bin_fetch.c, but this is ready for when they update their server.)
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN=y
+
+# The setup portal's web and DNS servers need more sockets than the default 10
+CONFIG_LWIP_MAX_SOCKETS=16
+
+# WiFi plus HTTPS only just fits the default 1 MB app partition
+CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y

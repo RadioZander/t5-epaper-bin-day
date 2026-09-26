@@ -1,0 +1,14 @@
+menu "Bin Day Configuration"
+
+    config BIN_NTP_SERVER
+        string "NTP server"
+        default "pool.ntp.org"
+
+    config BIN_TIMEZONE
+        string "Timezone (POSIX TZ string)"
+        default "GMT0BST,M3.5.0/1,M10.5.0"
+        help
+            POSIX TZ string, including daylight saving rules. The default is
+            UK time.
+
+endmenu
