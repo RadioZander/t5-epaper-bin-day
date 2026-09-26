@@ -2,6 +2,10 @@
 CONFIG_IDF_TARGET="esp32"
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 
+# Some T5 boards have a Boya flash chip, which ESP-IDF only drives with its
+# own chip driver when this is on (it's off by default for the ESP32)
+CONFIG_SPI_FLASH_SUPPORT_BOYA_CHIP=y
+
 # The council's certificate chains to DigiCert Global Root G2, which is in
 # the common CA bundle. (HTTPS to the council currently fails anyway, see
 # main/bin_fetch.c, but this is ready for when they update their server.)
