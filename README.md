@@ -10,12 +10,14 @@ The board spends nearly all its time in deep sleep. The e-paper keeps showing th
 
 It wakes:
 
-- shortly after midnight, when "In N days" changes
+- when it's switched on
+- at 05:00, so the screen is up to date before you get up, and at 15:00
+- every hour after a failed update, until one works
+- at 00:30, to show the new date and day count (not at midnight exactly, as the clock can drift by up to a quarter of an hour between updates)
 - when the reminder starts, the day before a collection (see Reminder below)
-- at least every 12 hours, or every hour after a failed update
 - when the button is pressed
 
-Each scheduled wake joins WiFi, sets the clock (the ESP32's sleep timer drifts by a few percent), downloads the calendar, redraws the screen if anything changed and goes back to sleep. The last good calendar is kept in flash, so the screen stays right through WiFi or website outages.
+The 05:00 and 15:00 wakes join WiFi, set the clock (the ESP32's sleep timer drifts by a few percent), download the calendar, redraw the screen if anything changed and go back to sleep. The 00:30 and reminder wakes only redraw, without WiFi, so they cost much less battery. The last good calendar is kept in flash, so the screen stays right through WiFi or website outages.
 
 Battery life hasn't been measured yet. It depends mostly on how much the board draws in deep sleep, which varies between T5 versions.
 

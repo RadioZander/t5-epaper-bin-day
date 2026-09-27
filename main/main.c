@@ -1,9 +1,10 @@
 // Bin day reminder for the LilyGO TTGO T5 V2.3 e-paper board.
 //
 // The board spends nearly all its time in deep sleep, with the e-paper
-// holding the picture. It wakes shortly after midnight, when the reminder
-// starts the day before a collection, and at least every 12 hours, to
-// download the calendar, correct the clock and redraw if anything changed.
+// holding the picture. It wakes at fixed times each day (early morning and
+// mid afternoon) to download the calendar, correct the clock and redraw if
+// anything changed, and without WiFi just after midnight and when the
+// reminder starts the day before a collection, to redraw.
 // It also wakes when the button is pressed: a short press marks the bins as
 // out, and a long press opens the menu.
 #include <stdio.h>
@@ -32,7 +33,6 @@
 
 static const char *TAG = "bin_day";
 
-#define REFRESH_INTERVAL_S   (12 * 60 * 60) // longest sleep between downloads
 #define RETRY_INTERVAL_S     (60 * 60)      // after a failed download
 #define JOIN_TIMEOUT_MS      (2 * 60 * 1000) // at power-on, before offering setup
 #define WAKE_JOIN_TIMEOUT_MS 20000           // on a scheduled wake
@@ -49,12 +49,15 @@ RTC_DATA_ATTR static bool s_time_valid; // the clock has been set since power-on
 RTC_DATA_ATTR static bool s_fetch_failed;
 RTC_DATA_ATTR static time_t s_last_attempt;
 RTC_DATA_ATTR static int s_partial_updates;
+RTC_DATA_ATTR static time_t s_wake_at;    // when the timer wake is for
+RTC_DATA_ATTR static bool s_wake_online; // and whether it's to download, or just redraw
 
 static bin_settings_t s_settings;
 static device_config_t s_config;
 static bin_calendar_t s_calendar;
 static bool s_wifi_started;
 static bool s_time_synced_now; // this time awake
+static bool s_timer_wake;      // woken by the timer, for s_wake_at
 static int s_battery_mv;       // measured on waking, before WiFi loads the battery
 
 // Bins in black and white: a fill pattern and the name underneath
@@ -481,32 +484,63 @@ static void run_portal(const char *reason)
 
 // ---- Sleep ---------------------------------------------------------------
 
-// When to wake next: shortly after midnight (the day count changes), when
-// the reminder starts, and at least every REFRESH_INTERVAL_S
-static time_t next_wake(time_t now)
+// The hours to download the calendar each day: before getting up, so the
+// morning screen is right, and mid afternoon
+static const int update_hours[] = {5, 15};
+#define NUM_UPDATE_HOURS (sizeof(update_hours) / sizeof(update_hours[0]))
+
+// When to redraw for the new day (the date, and "Tomorrow" or "In N days"),
+// without WiFi. Not 00:00: by then the clock may have drifted a quarter of an
+// hour since the afternoon update, and the new date mustn't show early.
+#define REDRAW_MINUTE_AFTER_MIDNIGHT 30
+
+// When to wake next, and in *online whether to download then: the next
+// update hour, or an hour after a failed update. Without WiFi: just after
+// midnight, and when the reminder starts. The sleep clock drifts by a few
+// percent, so a timer wake can come a little before the time it was for;
+// it counts as that one, rather than sleeping again for a few minutes.
+static time_t next_wake(time_t now, bool *online)
 {
+    *online = true;
     if (!s_time_valid) {
         return now + RETRY_INTERVAL_S;
     }
     struct tm today;
     localtime_r(&now, &today);
+    time_t after = s_timer_wake && s_wake_at > now ? s_wake_at : now;
 
-    struct tm midnight = {.tm_year = today.tm_year, .tm_mon = today.tm_mon, .tm_mday = today.tm_mday + 1,
-                          .tm_min = 2, .tm_isdst = -1};
-    time_t next = mktime(&midnight);
+    time_t next = 0;
+    for (int day = 0; day < 2; day++) {
+        for (size_t i = 0; i <= NUM_UPDATE_HOURS; i++) {
+            // The update hours, then the new day's redraw
+            bool update = i < NUM_UPDATE_HOURS;
+            struct tm tm = {.tm_year = today.tm_year, .tm_mon = today.tm_mon, .tm_mday = today.tm_mday + day,
+                            .tm_hour = update ? update_hours[i] : 0,
+                            .tm_min = update ? 0 : REDRAW_MINUTE_AFTER_MIDNIGHT, .tm_isdst = -1};
+            time_t at = mktime(&tm);
+            if (at > after && (!next || at < next)) {
+                next = at;
+                *online = update;
+            }
+        }
+    }
 
     bin_status_t st = get_status(&today);
     if (st.next && st.days == 1 && !st.reminder) {
         struct tm reminder = {.tm_year = today.tm_year, .tm_mon = today.tm_mon, .tm_mday = today.tm_mday,
                               .tm_hour = s_settings.reminder_from, .tm_isdst = -1};
         time_t at = mktime(&reminder);
-        if (at > now && at < next) {
+        if (at > after && at < next) {
             next = at;
+            *online = false;
         }
     }
 
-    time_t refresh = now + (s_fetch_failed ? RETRY_INTERVAL_S : REFRESH_INTERVAL_S);
-    return refresh < next ? refresh : next;
+    if (s_fetch_failed && now + RETRY_INTERVAL_S <= next) {
+        next = now + RETRY_INTERVAL_S;
+        *online = true;
+    }
+    return next;
 }
 
 static void go_to_sleep(void) __attribute__((noreturn));
@@ -514,12 +548,13 @@ static void go_to_sleep(void) __attribute__((noreturn));
 static void go_to_sleep(void)
 {
     time_t now = time(NULL);
-    time_t wake = next_wake(now);
+    time_t wake = next_wake(now, &s_wake_online);
+    s_wake_at = wake;
     struct tm tm;
     localtime_r(&wake, &tm);
     char buf[32];
     strftime(buf, sizeof(buf), "%a %d %b %H:%M", &tm);
-    ESP_LOGI(TAG, "Sleeping until %s", buf);
+    ESP_LOGI(TAG, "Sleeping until %s, %s", buf, s_wake_online ? "to update" : "to redraw");
 
     button_wait_release();
     if (s_wifi_started) {
@@ -576,9 +611,10 @@ static void draw_info(void)
     if (s_last_attempt) {
         snprintf(lines[n++], sizeof(lines[0]), "Last update %s", s_fetch_failed ? "failed" : "OK");
     }
-    time_t wake = next_wake(time(NULL));
+    bool online;
+    time_t wake = next_wake(time(NULL), &online);
     localtime_r(&wake, &tm);
-    strftime(lines[n++], sizeof(lines[0]), "Next update %a %H:%M", &tm);
+    strftime(lines[n++], sizeof(lines[0]), online ? "Next update %a %H:%M" : "Next redraw %a %H:%M", &tm);
     snprintf(lines[n++], sizeof(lines[0]), "%d collections saved", s_calendar.count);
     snprintf(lines[n++], sizeof(lines[0]), "WiFi %s", s_config.ssid);
     snprintf(lines[n++], sizeof(lines[0]), "Built %s", esp_app_get_description()->date);
@@ -783,8 +819,13 @@ void app_main(void)
         ESP_LOGI(TAG, "Woken by the button");
         handle_button_wake();
     } else if ((causes & (1 << ESP_SLEEP_WAKEUP_TIMER)) && s_time_valid) {
-        ESP_LOGI(TAG, "Woken for an update");
-        online_update(false);
+        s_timer_wake = true;
+        if (s_wake_online) {
+            ESP_LOGI(TAG, "Woken for an update");
+            online_update(false);
+        } else {
+            ESP_LOGI(TAG, "Woken to redraw");
+        }
         today_now(&today);
         draw_main(&today, NULL);
         show(true);
