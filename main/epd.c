@@ -38,6 +38,7 @@ RTC_DATA_ATTR static bool s_shown_flipped;
 static spi_device_handle_t s_spi;
 static bool s_flipped;
 static bool s_previous_loaded; // the panel has the image on screen, for a partial update
+static bool s_partial_done;    // a partial update has run since the last reset
 
 static void send(bool data, const uint8_t *bytes, size_t len)
 {
@@ -182,6 +183,7 @@ void epd_init(void)
     COMMAND(0x18, 0x80);                     // use the built-in temperature sensor
 
     // Give the panel what's on screen to compare against, for partial updates
+    s_partial_done = false;
     s_previous_loaded = false;
     if (s_shown_valid && s_shown_flipped == s_flipped) {
         image_to_ram(s_shown);
@@ -193,6 +195,11 @@ void epd_init(void)
 void epd_update(void)
 {
     ESP_LOGI(TAG, "Full update%s", s_flipped ? ", flipped" : "");
+    // After a partial update, a full one shows the old image again (the
+    // panel keeps something from display mode 2), so start from a reset
+    if (s_partial_done) {
+        epd_init();
+    }
     image_to_ram(epd_image);
     write_ram(0x24);
     refresh(0xF7); // full update, using the panel's own waveform
@@ -209,6 +216,7 @@ void epd_update_partial(void)
     image_to_ram(epd_image);
     write_ram(0x24);
     refresh(0xFF); // "display mode 2", the controller's partial waveform
+    s_partial_done = true;
 }
 
 bool epd_image_changed(void)
