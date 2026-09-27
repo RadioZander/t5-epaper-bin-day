@@ -126,16 +126,22 @@ static void show(bool full)
 
 // ---- Drawing -------------------------------------------------------------
 
-// "Thu 1 Oct"
+// "Thu 1 Oct", without the leading zero strftime's %d gives
+static void format_day(char *buf, size_t len, const struct tm *tm)
+{
+    char weekday[8], month[8];
+    strftime(weekday, sizeof(weekday), "%a", tm);
+    strftime(month, sizeof(month), "%b", tm);
+    snprintf(buf, len, "%s %d %s", weekday, tm->tm_mday, month);
+}
+
+// A collection's date, "Thu 1 Oct"
 static void format_date(char *buf, size_t len, const bin_collection_t *c)
 {
     struct tm date = {.tm_year = c->year - 1900, .tm_mon = c->month - 1, .tm_mday = c->day,
                       .tm_hour = 12, .tm_isdst = -1};
     mktime(&date); // fills in the weekday
-    char weekday[8], month[8];
-    strftime(weekday, sizeof(weekday), "%a", &date);
-    strftime(month, sizeof(month), "%b", &date);
-    snprintf(buf, len, "%s %d %s", weekday, c->day, month);
+    format_day(buf, len, &date);
 }
 
 // "Refuse, Food"
@@ -226,7 +232,7 @@ static void draw_battery(int right, int percent, bool low)
 static void draw_status_line(const struct tm *today, const char *preview)
 {
     char buf[40];
-    strftime(buf, sizeof(buf), "%a %d %b", today);
+    format_day(buf, sizeof(buf), today);
     gfx_text(2, 1, buf, 1, true);
 
     if (s_battery_mv) {
@@ -557,8 +563,9 @@ static void go_to_sleep(void)
     s_wake_at = wake;
     struct tm tm;
     localtime_r(&wake, &tm);
-    char buf[32];
-    strftime(buf, sizeof(buf), "%a %d %b %H:%M", &tm);
+    char buf[32], day[16];
+    format_day(day, sizeof(day), &tm);
+    snprintf(buf, sizeof(buf), "%s %02d:%02d", day, tm.tm_hour, tm.tm_min);
     ESP_LOGI(TAG, "Sleeping until %s, %s", buf, s_wake_online ? "to update" : "to redraw");
 
     button_wait_release();
@@ -609,7 +616,9 @@ static void draw_info(void)
     if (s_calendar.updated) {
         time_t updated = s_calendar.updated;
         localtime_r(&updated, &tm);
-        strftime(lines[n++], sizeof(lines[0]), "Updated %a %d %b %H:%M", &tm);
+        char day[16];
+        format_day(day, sizeof(day), &tm);
+        snprintf(lines[n++], sizeof(lines[0]), "Updated %s %02d:%02d", day, tm.tm_hour, tm.tm_min);
     } else {
         snprintf(lines[n++], sizeof(lines[0]), "Never updated");
     }
