@@ -55,6 +55,7 @@ static device_config_t s_config;
 static bin_calendar_t s_calendar;
 static bool s_wifi_started;
 static bool s_time_synced_now; // this time awake
+static int s_battery_mv;       // measured on waking, before WiFi loads the battery
 
 // Bins in black and white: a fill pattern and the name underneath
 typedef enum {
@@ -186,24 +187,51 @@ static void draw_bin(int cx, int top, int h, int style)
     }
 }
 
-// The status line along the top: today's date, and the most important of
-// the preview label, a low battery or the last update
+// The charge and a battery with a segment for each quarter, ending at
+// `right` in the status line, white on black when low
+#define BATTERY_ICON_W 17 // body and terminal
+static void draw_battery(int right, int percent, bool low)
+{
+    char buf[8];
+    snprintf(buf, sizeof(buf), "%d%%", percent);
+    int w = gfx_text_width(buf, 1) + 2 + BATTERY_ICON_W;
+    int x = right - w;
+    bool ink = !low;
+    if (low) {
+        gfx_fill_rect(x - 2, 0, w + 4, 9, true);
+    }
+    gfx_text(x, 1, buf, 1, ink);
+    x = right - BATTERY_ICON_W;
+    gfx_fill_rect(x, 1, 15, 1, ink); // body, 15x7
+    gfx_fill_rect(x, 7, 15, 1, ink);
+    gfx_fill_rect(x, 1, 1, 7, ink);
+    gfx_fill_rect(x + 14, 1, 1, 7, ink);
+    gfx_fill_rect(x + 15, 3, 2, 3, ink); // terminal
+    int segments = (percent + 24) / 25; // a quarter part used still shows
+    for (int i = 0; i < segments; i++) {
+        gfx_fill_rect(x + 2 + i * 3, 3, 2, 3, ink);
+    }
+}
+
+// The status line along the top: today's date, then the preview label or the
+// last update in the middle, and the battery on the right like on a phone
 static void draw_status_line(const struct tm *today, const char *preview)
 {
     char buf[40];
     strftime(buf, sizeof(buf), "%a %d %b", today);
     gfx_text(2, 1, buf, 1, true);
 
+    if (s_battery_mv) {
+        draw_battery(EPD_WIDTH - 2, battery_percent(s_battery_mv), s_battery_mv < LOW_BATTERY_MV);
+    }
+
     if (preview) {
         snprintf(buf, sizeof(buf), " %s ", preview);
         int w = gfx_text_width(buf, 1);
-        gfx_fill_rect(EPD_WIDTH - 2 - w, 0, w, 9, true);
-        gfx_text(EPD_WIDTH - 2 - w, 1, buf, 1, false);
+        gfx_fill_rect((EPD_WIDTH - w) / 2, 0, w, 9, true);
+        gfx_text((EPD_WIDTH - w) / 2, 1, buf, 1, false);
     } else {
-        int mv = battery_millivolts();
-        if (mv && mv < LOW_BATTERY_MV) {
-            snprintf(buf, sizeof(buf), "Battery low");
-        } else if (s_fetch_failed) {
+        if (s_fetch_failed) {
             snprintf(buf, sizeof(buf), "Update failed");
         } else if (s_calendar.updated) {
             time_t updated = s_calendar.updated;
@@ -213,7 +241,7 @@ static void draw_status_line(const struct tm *today, const char *preview)
         } else {
             buf[0] = '\0';
         }
-        gfx_text(EPD_WIDTH - 2 - gfx_text_width(buf, 1), 1, buf, 1, true);
+        gfx_text_centered(1, buf, 1, true);
     }
     gfx_fill_rect(0, 10, EPD_WIDTH, 1, true);
 }
@@ -531,9 +559,10 @@ static void draw_info(void)
     int n = 0;
     struct tm tm;
 
-    int mv = battery_millivolts();
+    int mv = s_battery_mv;
     if (mv) {
-        snprintf(lines[n++], sizeof(lines[0]), "Battery %d.%02d V", mv / 1000, mv % 1000 / 10);
+        snprintf(lines[n++], sizeof(lines[0]), "Battery %d.%02d V, about %d%%", mv / 1000, mv % 1000 / 10,
+                 battery_percent(mv));
     } else {
         snprintf(lines[n++], sizeof(lines[0]), "Battery not measured");
     }
@@ -737,6 +766,8 @@ void app_main(void)
     config_load(&s_config);
     bin_calendar_load(&s_calendar);
     button_init();
+    s_battery_mv = battery_millivolts();
+    ESP_LOGI(TAG, "Battery %d mV", s_battery_mv);
     setenv("TZ", CONFIG_BIN_TIMEZONE, 1);
     tzset();
     epd_set_flipped(s_settings.flipped);

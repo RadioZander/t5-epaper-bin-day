@@ -21,7 +21,7 @@ Battery life hasn't been measured yet. It depends mostly on how much the board d
 
 ## What it shows
 
-- **Along the top**: today's date, and when the calendar was last downloaded (or "Update failed", or "Battery low")
+- **Along the top**: today's date, when the calendar was last downloaded (or "Update failed") in the middle, and the battery charge on the right as a percentage and a four-segment battery, shown white on black when low. The percentage is estimated from the voltage, so treat it as a guide, and it means nothing while on USB power.
 - **Headline**: "Bins out tonight" the day before a collection, "Collection today" on the day (both white on black), "Tomorrow" before the reminder starts, otherwise the date of the next collection with the number of days to go underneath
 - **Bins**: a picture of each bin being collected, with its name: solid black for refuse, hatched for recycling, a small caddy for food waste and dotted for garden waste
 - **Bins are out**: once you've put the bins out, press the button and the headline changes to "Bins are out" until collection day. Press it again to undo
@@ -48,7 +48,7 @@ In the menu:
 | Item | What it does |
 |---|---|
 | Update | Download the calendar now |
-| Info | Battery voltage, last update and its result, next scheduled update, number of collections saved, WiFi network and firmware build date |
+| Info | Battery voltage and percentage, last update and its result, next scheduled update, number of collections saved, WiFi network and firmware build date |
 | Reminder | When "Bins out tonight" starts the day before a collection: all day, or from any hour between 12:00 and 22:00 |
 | Screen | Normal (USB connector at the bottom left) or Flipped (rotated 180 degrees) |
 | Preview | Each press shows an example screen: the evening before, then the day of, each of the next two collections |
