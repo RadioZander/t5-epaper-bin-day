@@ -23,12 +23,20 @@ Battery life hasn't been measured yet. It depends mostly on how much the board d
 
 ## What it shows
 
+![The main screen: the next collection, Tue 29 Sep, in 2 days, with the refuse bin and food caddy](docs/main.png)
+
 - **Along the top**: today's date, when the calendar was last downloaded (or "Update failed") in the middle, and the battery charge on the right as a percentage and a four-segment battery, shown white on black when low. The percentage is estimated from the voltage, so treat it as a guide, and it means nothing while on USB power.
 - **Headline**: "Bins out tonight" the day before a collection, "Collection today" on the day (both white on black), "Tomorrow" before the reminder starts, otherwise the date of the next collection with the number of days to go underneath
 - **Bins**: a picture of each bin being collected, with its name: solid black for refuse, hatched for recycling, a small caddy for food waste and dotted for garden waste
 - **Bins are out**: once you've put the bins out, press the button and the headline changes to "Bins are out" until collection day. Press it again to undo
 - **Changes**: if the council marks a collection as different from the usual arrangements (for example over Christmas), "(changed)" is added after the date
 - **Along the bottom**: a reminder to press the button while the bins need putting out, otherwise the collection after the next one
+
+| The evening before | After pressing the button | On the day |
+|---|---|---|
+| ![Bins out tonight, for Tue 6 Oct, with the recycling bin, food caddy and garden bin](docs/bins_out_tonight.png) | ![Bins are out, for Tue 6 Oct](docs/bins_are_out.png) | ![Collection today, Tue 6 Oct](docs/collection_today.png) |
+
+These pictures come from the firmware's own drawing code, run on a PC with a made-up calendar (see [Screen pictures](#screen-pictures)).
 
 ## Button and menu
 
@@ -46,6 +54,8 @@ In the menu:
 | Long press | Next item. After the last item, closes the menu |
 | Short press | Select or change the item |
 | No press for 15 seconds | Close the menu |
+
+![The menu's first item, Update, with "Download now"](docs/menu.png)
 
 | Item | What it does |
 |---|---|
@@ -117,6 +127,14 @@ The parsers for the calendar and the postcode search are plain C, so they can be
 
 ```bash
 cc -Wall -Imain test/test_bin_calendar.c main/bin_calendar.c -lm -o test_bin_calendar && ./test_bin_calendar
+```
+
+## Screen pictures
+
+The pictures in this README are drawn by the firmware's own code: `tools/screenshots.c` builds `main.c` on a PC (with stand-ins for ESP-IDF in `tools/host`), draws each screen from a made-up calendar and saves it. To make them again after changing the layout (needs a C compiler and Pillow):
+
+```bash
+python tools/screenshots.py
 ```
 
 ## Hardware
