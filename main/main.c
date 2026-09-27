@@ -165,26 +165,31 @@ static void fill_area(int x, int y, int w, int h, fill_t fill)
     }
 }
 
-// A wheelie bin (or food caddy) `h` pixels tall, centred on `cx`
+// A wheelie bin (or food caddy) `h` pixels tall, centred on `cx`. Widths
+// are odd, so the bin is symmetrical about cx, like its label (5x7 text is
+// always an odd number of pixels wide).
 static void draw_bin(int cx, int top, int h, int style)
 {
     if (bin_styles[style].caddy) {
         // Smaller, sitting on the same ground line, and no wheels
         int ch = h * 3 / 5;
-        int w = ch;
+        int w = ch | 1;
         top += h - ch;
         gfx_fill_rect(cx - w / 2 - 2, top, w + 4, ch / 5, true);
         fill_area(cx - w / 2, top + ch / 5 + 1, w, ch - ch / 5 - 1, bin_styles[style].fill);
         return;
     }
-    int w = h * 2 / 3;
+    int w = (h * 2 / 3) | 1;
+    int left = cx - w / 2;
+    int overhang = h / 16; // of the lid, each side
     int lid_h = h / 8;
     int wheel = h / 7;
-    gfx_fill_rect(cx - w / 2 - h / 16, top, w + h / 8, lid_h, true);
-    fill_area(cx - w / 2, top + lid_h + 1, w, h - lid_h - 1 - wheel / 2, bin_styles[style].fill);
-    // Wheels, with a white edge so they show against a black bin
+    gfx_fill_rect(left - overhang, top, w + 2 * overhang, lid_h, true);
+    fill_area(left, top + lid_h + 1, w, h - lid_h - 1 - wheel / 2, bin_styles[style].fill);
+    // Wheels, flush with the sides, with a white edge so they show against a
+    // black bin
     for (int side = 0; side < 2; side++) {
-        int x = side ? cx + w / 2 - wheel : cx - w / 2;
+        int x = side ? left + w - wheel : left;
         gfx_fill_rect(x - 1, top + h - wheel - 1, wheel + 2, wheel + 1, false);
         gfx_fill_rect(x, top + h - wheel, wheel, wheel, true);
     }
