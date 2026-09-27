@@ -260,7 +260,7 @@ static void draw_main(const struct tm *today, const char *preview)
     bin_status_t st = get_status(today);
     const bin_collection_t *next = st.next;
     if (!next) {
-        gfx_text_centered(30, "No collections", 2, true);
+        gfx_text_font_centered(30, "No collections", &font_bold_12, true);
         gfx_text_centered(56, s_calendar.updated ? "None in the calendar" : "Waiting for the calendar", 1, true);
         return;
     }
@@ -295,7 +295,7 @@ static void draw_main(const struct tm *today, const char *preview)
     if (highlight) {
         gfx_fill_rect(0, 12, EPD_WIDTH, 19, true);
     }
-    gfx_text_centered(15, headline, 2, !highlight);
+    gfx_text_font_centered(15, headline, &font_bold_12, !highlight);
     gfx_text_centered(33, subline, 1, true);
 
     // One bin per slot across the screen, with its name underneath
@@ -332,7 +332,7 @@ static void draw_main(const struct tm *today, const char *preview)
 static void draw_message(const char *title, const char *line1, const char *line2)
 {
     gfx_clear();
-    gfx_text_centered(20, title, 3, true);
+    gfx_text_font_centered(20, title, &font_bold_20, true);
     gfx_text_centered(58, line1, 1, true);
     gfx_text_centered(72, line2, 1, true);
 }
@@ -417,16 +417,16 @@ static void draw_portal(const char *reason, const char *status, bool can_cancel)
     char buf[40];
     gfx_clear();
     gfx_fill_rect(0, 0, EPD_WIDTH, 20, true);
-    gfx_text(4, 3, "Setup", 2, false);
+    gfx_text_font(4, 4, "Setup", &font_bold_12, false);
     gfx_text(EPD_WIDTH - 4 - gfx_text_width(reason, 1), 7, reason, 1, false);
     if (!portal_ssid()[0]) {
-        gfx_text_centered(50, "Starting...", 2, true);
+        gfx_text_font_centered(50, "Starting...", &font_bold_12, true);
         return;
     }
     gfx_text(4, 25, "On your phone, join the WiFi network", 1, true);
-    gfx_text(4, 36, portal_ssid(), 2, true);
+    gfx_text_font(4, 37, portal_ssid(), &font_bold_12, true);
     snprintf(buf, sizeof(buf), "Password %s", portal_password());
-    gfx_text(4, 56, buf, 2, true);
+    gfx_text_font(4, 57, buf, &font_bold_12, true);
     gfx_text(4, 77, "The setup page opens by itself,", 1, true);
     gfx_text(4, 86, "or go to http://" PORTAL_ADDRESS, 1, true);
     gfx_text(4, 100, status, 1, true);
@@ -629,7 +629,7 @@ static void draw_menu(menu_item_t item)
     const char *action = "Press to change";
     gfx_clear();
     gfx_fill_rect(0, 0, EPD_WIDTH, 20, true);
-    gfx_text(4, 3, item_names[item], 2, false);
+    gfx_text_font(4, 4, item_names[item], &font_bold_12, false);
     snprintf(buf, sizeof(buf), "%d/%d", item + 1, NUM_ITEMS);
     gfx_text(EPD_WIDTH - 4 - gfx_text_width(buf, 1), 7, buf, 1, false);
 
@@ -665,7 +665,7 @@ static void draw_menu(menu_item_t item)
         value[0] = '\0';
         break;
     }
-    gfx_text_centered(40, value, 2, true);
+    gfx_text_font_centered(41, value, &font_bold_12, true);
     gfx_text_centered(64, action, 1, true);
     gfx_text(4, 100, "Hold: next item", 1, true);
     gfx_text(4, 112, "Closes by itself after 15 s", 1, true);

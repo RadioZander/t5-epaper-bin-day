@@ -138,5 +138,6 @@ It includes material from other projects under their own licences:
 
 - **DNS server** in `components/dns_server`: from ESP-IDF's captive portal example, Copyright (c) 2021-2025 Espressif Systems, public domain (Unlicense or CC0).
 - **5×7 text font** in `main/gfx.c`: from the [Adafruit GFX Library](https://github.com/adafruit/Adafruit-GFX-Library) (`glcdfont.c`), Copyright (c) 2012 Adafruit Industries, BSD licence. The full licence is in [LICENSES/Adafruit-GFX.txt](LICENSES/Adafruit-GFX.txt).
+- **Large text font** in `main/font_bold_12.c` and `main/font_bold_20.c`: DejaVu Sans Bold, turned into bitmaps by `tools/make_font.py`. Bitstream Vera Fonts Copyright (c) 2003 Bitstream, Inc., with DejaVu changes in the public domain. The full licence is in [LICENSES/DejaVu.txt](LICENSES/DejaVu.txt).
 
 The built firmware also contains ESP-IDF and the libraries that come with it (such as FreeRTOS, lwIP and Mbed TLS), each under its own licence. If you hand out flashed devices, include the notices listed on Espressif's [Copyrights and Licenses](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/COPYRIGHT.html) page.

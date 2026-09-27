@@ -97,3 +97,42 @@ void gfx_text_centered(int y, const char *text, int scale, bool black)
 {
     gfx_text((EPD_WIDTH - gfx_text_width(text, scale)) / 2, y, text, scale, black);
 }
+
+static const gfx_glyph_t *glyph_for(const gfx_font_t *font, char c)
+{
+    if (c < font->first || c > font->last) {
+        c = '?';
+    }
+    return &font->glyphs[c - font->first];
+}
+
+// From the start of the first glyph to the end of the last one's pixels
+int gfx_text_font_width(const char *text, const gfx_font_t *font)
+{
+    int w = 0;
+    for (; *text; text++) {
+        const gfx_glyph_t *g = glyph_for(font, *text);
+        w += text[1] ? g->advance : g->x_offset + g->width;
+    }
+    return w;
+}
+
+void gfx_text_font(int x, int y, const char *text, const gfx_font_t *font, bool black)
+{
+    int baseline = y + font->cap_height;
+    for (; *text; text++) {
+        const gfx_glyph_t *g = glyph_for(font, *text);
+        const uint8_t *bits = font->bitmap + g->offset;
+        for (int i = 0; i < g->width * g->height; i++) {
+            if (bits[i / 8] & (0x80 >> (i % 8))) {
+                gfx_pixel(x + g->x_offset + i % g->width, baseline + g->y_offset + i / g->width, black);
+            }
+        }
+        x += g->advance;
+    }
+}
+
+void gfx_text_font_centered(int y, const char *text, const gfx_font_t *font, bool black)
+{
+    gfx_text_font((EPD_WIDTH - gfx_text_font_width(text, font)) / 2, y, text, font, black);
+}
